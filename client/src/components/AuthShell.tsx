@@ -59,12 +59,12 @@ export function AuthShell({ eyebrow, title, subtitle, children, footer }: AuthSh
           <div>
             <span className="chip">Secure access</span>
             <h2 className="mt-6 font-display text-4xl font-semibold leading-tight tracking-tight">
-              Predictive intelligence for the{" "}
-              <span className="text-gradient-brand">networks</span> the world runs on.
+              Predictive intelligence for the <span className="text-gradient-brand">networks</span>{" "}
+              the world runs on.
             </h2>
             <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">
-              Real-time telemetry, AI-powered congestion forecasting, and SLA-grade
-              alerting — purpose-built for telecom operators and infrastructure providers.
+              Real-time telemetry, AI-powered congestion forecasting, and SLA-grade alerting —
+              purpose-built for telecom operators and infrastructure providers.
             </p>
           </div>
 
@@ -74,10 +74,7 @@ export function AuthShell({ eyebrow, title, subtitle, children, footer }: AuthSh
               { k: "<2 min", v: "Alert latency" },
               { k: "SOC 2", v: "Type II ready" },
             ].map((s) => (
-              <div
-                key={s.v}
-                className="glass-panel rounded-md p-3"
-              >
+              <div key={s.v} className="glass-panel rounded-md p-3">
                 <div className="font-mono text-lg font-semibold text-cyan">{s.k}</div>
                 <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                   {s.v}

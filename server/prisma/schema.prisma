@@ -8,11 +8,23 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  company   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  name        String
+  email       String   @unique
+  password    String
+  company     String?
+  isVerified  Boolean  @default(false)
+  otp         String?
+  otpExpiry   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model NetworkMetric {
+  id               Int      @id @default(autoincrement())
+  active_users     Int
+  latency          Float
+  throughput       Float
+  congestion_level Int
+  timestamp        DateTime @default(now())
 }

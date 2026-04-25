@@ -7,14 +7,7 @@ const stats = [
   { value: "38", label: "Operators deployed" },
 ];
 
-const logos = [
-  "TELCOM ONE",
-  "FIBERNET",
-  "RADIO+",
-  "MERIDIAN",
-  "OMNICAST",
-  "ARCWAVE",
-];
+const logos = ["TELCOM ONE", "FIBERNET", "RADIO+", "MERIDIAN", "OMNICAST", "ARCWAVE"];
 
 export function Trust() {
   return (

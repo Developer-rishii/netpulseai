@@ -1,9 +1,23 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Mail, Lock, Building2, User, ArrowRight, Eye, EyeOff, Check, Loader2 } from "lucide-react";
+import { Mail, Lock, Building2, User, ArrowRight, Eye, EyeOff, Check, Loader2, ShieldCheck, ArrowLeft } from "lucide-react";
 import { AuthShell } from "@/components/AuthShell";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSeparator,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
+
+const registerSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  company: z.string().optional(),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
 
 export const Route = createFileRoute("/register")({
   head: () => ({
@@ -28,18 +42,25 @@ const benefits = [
 function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [requiresVerification, setRequiresVerification] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const [otp, setOtp] = useState("");
   const navigate = useNavigate();
-  
-  const { register, handleSubmit, formState: { errors } } = useForm({
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
     defaultValues: {
       name: "",
       company: "",
       email: "",
       password: "",
-    }
+    },
   });
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: z.infer<typeof registerSchema>) => {
     setIsLoading(true);
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
@@ -56,18 +77,147 @@ function RegisterPage() {
         throw new Error(result.message || "Registration failed");
       }
 
-      toast.success("Account created successfully!");
-      localStorage.setItem("token", result.token);
-      localStorage.setItem("user", JSON.stringify(result.user));
-      
-      // Navigate to dashboard or home
-      navigate({ to: "/" });
-    } catch (error: any) {
-      toast.error(error.message);
+      if (result.requiresVerification) {
+        setRequiresVerification(true);
+        setUserEmail(result.email);
+        toast.info("Please check your email for the OTP code.");
+      } else {
+        // Fallback if verification is disabled on backend
+        toast.success("Account created successfully!");
+        localStorage.setItem("token", result.token);
+        localStorage.setItem("user", JSON.stringify(result.user));
+        navigate({ to: "/dashboard" });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "An unexpected error occurred";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleVerifyOtp = async () => {
+    if (otp.length !== 6) {
+      toast.error("Please enter a 6-digit OTP");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/verify-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: userEmail, otp }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Verification failed");
+      }
+
+      toast.success("Account verified successfully!");
+      localStorage.setItem("token", result.token);
+      localStorage.setItem("user", JSON.stringify(result.user));
+      navigate({ to: "/dashboard" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Verification failed";
+      toast.error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/resend-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: userEmail }),
+      });
+
+      if (!response.ok) throw new Error("Failed to resend OTP");
+
+      toast.success("A new OTP has been sent to your email.");
+    } catch (error) {
+      toast.error("Could not resend OTP. Please try again.");
+    }
+  };
+
+  if (requiresVerification) {
+    return (
+      <AuthShell
+        eyebrow="// Security Verification"
+        title="Verify your email"
+        subtitle={`We've sent a 6-digit code to ${userEmail}.`}
+        footer={
+          <>
+            Entered wrong email?{" "}
+            <button onClick={() => setRequiresVerification(false)} className="font-medium text-cyan hover:underline">
+              Go back
+            </button>
+          </>
+        }
+      >
+        <div className="flex flex-col items-center space-y-6">
+          <div className="p-4 rounded-full bg-cyan/10 text-cyan mb-2">
+            <ShieldCheck className="w-10 h-10" />
+          </div>
+          
+          <div className="space-y-4 w-full flex flex-col items-center">
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              Enter verification code
+            </span>
+            <InputOTP
+              maxLength={6}
+              value={otp}
+              onChange={(val) => setOtp(val)}
+            >
+              <InputOTPGroup>
+                <InputOTPSlot index={0} />
+                <InputOTPSlot index={1} />
+                <InputOTPSlot index={2} />
+              </InputOTPGroup>
+              <InputOTPSeparator />
+              <InputOTPGroup>
+                <InputOTPSlot index={3} />
+                <InputOTPSlot index={4} />
+                <InputOTPSlot index={5} />
+              </InputOTPGroup>
+            </InputOTP>
+          </div>
+
+          <div className="w-full space-y-4">
+            <button
+              onClick={handleVerifyOtp}
+              disabled={isLoading || otp.length < 6}
+              className="group flex w-full items-center justify-center gap-2 rounded-md bg-gradient-to-r from-cyan to-violet px-4 py-3 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-primary-foreground transition-all hover:shadow-[0_0_32px_-4px_color-mix(in_oklab,var(--cyan)_60%,transparent)] disabled:opacity-50"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  Verify Account
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={handleResendOtp}
+              className="w-full py-2 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-cyan transition-colors"
+            >
+              Resend Code
+            </button>
+          </div>
+        </div>
+      </AuthShell>
+    );
+  }
 
   return (
     <AuthShell
@@ -119,12 +269,12 @@ function RegisterPage() {
           icon={<Mail className="h-4 w-4" />}
           label="Work email"
           error={errors.email?.message as string}
-          {...register("email", { 
+          {...register("email", {
             required: "Email is required",
             pattern: {
               value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-              message: "Invalid email address"
-            }
+              message: "Invalid email address",
+            },
           })}
           type="email"
           placeholder="you@operator.com"
@@ -135,12 +285,12 @@ function RegisterPage() {
           icon={<Lock className="h-4 w-4" />}
           label="Password"
           error={errors.password?.message as string}
-          {...register("password", { 
+          {...register("password", {
             required: "Password is required",
             minLength: {
               value: 8,
-              message: "Password must be at least 8 characters"
-            }
+              message: "Password must be at least 8 characters",
+            },
           })}
           type={showPassword ? "text" : "password"}
           placeholder="At least 8 characters"
@@ -165,8 +315,14 @@ function RegisterPage() {
           />
           <span>
             I agree to the{" "}
-            <a href="#" className="text-cyan hover:underline">Terms</a> and{" "}
-            <a href="#" className="text-cyan hover:underline">Privacy Policy</a>.
+            <a href="#" className="text-cyan hover:underline">
+              Terms
+            </a>{" "}
+            and{" "}
+            <a href="#" className="text-cyan hover:underline">
+              Privacy Policy
+            </a>
+            .
           </span>
         </label>
 
@@ -196,12 +352,14 @@ interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string;
 }
 
-const Field = (({ label, icon, rightSlot, error, ...props }: FieldProps) => {
+const Field = ({ label, icon, rightSlot, error, ...props }: FieldProps) => {
   return (
     <div className="block">
       <span className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
         {label}
-        {error && <span className="text-destructive lowercase tracking-normal font-sans">{error}</span>}
+        {error && (
+          <span className="text-destructive lowercase tracking-normal font-sans">{error}</span>
+        )}
       </span>
       <div className="group relative">
         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-cyan">
@@ -217,5 +375,4 @@ const Field = (({ label, icon, rightSlot, error, ...props }: FieldProps) => {
       </div>
     </div>
   );
-});
-
+};

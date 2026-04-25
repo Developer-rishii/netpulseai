@@ -64,9 +64,7 @@ export function HowItWorks() {
                   <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
                     Step 0{i + 1}
                   </div>
-                  <h3 className="mt-2 text-lg font-semibold tracking-tight">
-                    {s.title}
-                  </h3>
+                  <h3 className="mt-2 text-lg font-semibold tracking-tight">{s.title}</h3>
                   <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
                     {s.desc}
                   </p>

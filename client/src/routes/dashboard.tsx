@@ -1,0 +1,129 @@
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useDashboardData } from "@/hooks/useDashboardData";
+import { MetricCard } from "@/components/dashboard/MetricCard";
+import { LatencyChart, ThroughputLatencyChart } from "@/components/dashboard/Charts";
+import { AIInsights } from "@/components/dashboard/AIInsights";
+import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
+import { LiveFeed } from "@/components/dashboard/LiveFeed";
+import { SystemStatus } from "@/components/dashboard/SystemStatus";
+import { Activity, ArrowDownUp, Network, Wifi, AlertTriangle } from "lucide-react";
+import { motion } from "framer-motion";
+
+export const Route = createFileRoute("/dashboard")({
+  beforeLoad: () => {
+    // Basic auth protection - check if token exists
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw redirect({
+        to: "/login",
+      });
+    }
+  },
+  component: DashboardPage,
+});
+
+function DashboardPage() {
+  const { metrics, latestMetric, alerts, logs, modelStatus, apiStatus, lastPredictionTime } = useDashboardData();
+
+  if (!latestMetric) {
+    return (
+      <div className="min-h-screen bg-background grid-bg flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full bg-cyan animate-pulse-dot" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background grid-bg text-foreground p-6 font-sans relative overflow-x-hidden">
+      {/* Background ambient glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-64 bg-cyan/5 blur-[120px] pointer-events-none rounded-full" />
+      
+      <div className="max-w-[1600px] mx-auto space-y-6 relative z-10">
+        {/* Header */}
+        <header className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground flex items-center gap-3">
+              <span className="w-2 h-8 rounded-full bg-cyan shadow-[0_0_15px_rgba(0,255,255,0.5)]" />
+              Network Intelligence Console
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">Real-time traffic congestion monitoring and prediction.</p>
+          </div>
+          
+          <SystemStatus 
+            modelStatus={modelStatus}
+            apiStatus={apiStatus}
+            lastPredictionTime={lastPredictionTime}
+          />
+        </header>
+
+        {/* 1. Top Summary Cards (KPI Section) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <MetricCard
+            title="Latency"
+            value={latestMetric.latency.toFixed(0)}
+            unit="ms"
+            icon={Activity}
+            trend={{ value: 18, isPositive: true }} // Mock trend
+            status={latestMetric.latency > 100 ? "critical" : latestMetric.latency > 60 ? "warning" : "good"}
+            glow={latestMetric.latency > 60}
+          />
+          <MetricCard
+            title="Packet Loss"
+            value={latestMetric.packetLoss.toFixed(2)}
+            unit="%"
+            icon={ArrowDownUp}
+            status={latestMetric.packetLoss > 2 ? "critical" : latestMetric.packetLoss > 0.5 ? "warning" : "good"}
+            glow={latestMetric.packetLoss > 0.5}
+          />
+          <MetricCard
+            title="Signal (RSSI)"
+            value={latestMetric.rssi.toFixed(0)}
+            unit="dBm"
+            icon={Wifi}
+            status={latestMetric.rssi < -75 ? "critical" : latestMetric.rssi < -65 ? "warning" : "good"}
+          />
+          <MetricCard
+            title="Throughput"
+            value={latestMetric.throughput.toFixed(0)}
+            unit="Mbps"
+            icon={Network}
+            trend={{ value: 4.2, isPositive: true }}
+          />
+          <MetricCard
+            title="Congestion Prediction"
+            value={latestMetric.congestionStatus}
+            icon={AlertTriangle}
+            status={latestMetric.congestionStatus === "High" ? "critical" : latestMetric.congestionStatus === "Medium" ? "warning" : "good"}
+            glow={latestMetric.congestionStatus !== "Low"}
+          />
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* Left Column (Charts - takes up 8 columns) */}
+          <div className="lg:col-span-8 space-y-6">
+            <LatencyChart data={metrics} />
+            <ThroughputLatencyChart data={metrics} />
+          </div>
+
+          {/* Right Column (Insights, Alerts, Feed - takes up 4 columns) */}
+          <div className="lg:col-span-4 space-y-6 flex flex-col h-full">
+            <div className="h-64 shrink-0">
+              <AIInsights congestionStatus={latestMetric.congestionStatus} latency={latestMetric.latency} />
+            </div>
+            
+            <div className="h-48 shrink-0">
+              <AlertsPanel alerts={alerts} />
+            </div>
+            
+            <div className="flex-1 min-h-[200px]">
+              <LiveFeed logs={logs} />
+            </div>
+          </div>
+          
+        </div>
+      </div>
+    </div>
+  );
+}

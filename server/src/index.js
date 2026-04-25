@@ -4,6 +4,8 @@ require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 const express = require("express");
 const cors = require("cors");
 const authRoutes = require("./routes/authRoutes");
+const utilRoutes = require("./routes/utilRoutes");
+const iotRoutes = require("./routes/iotRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -14,6 +16,8 @@ app.use(express.json());
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/utils", utilRoutes);
+app.use("/api/iot", iotRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

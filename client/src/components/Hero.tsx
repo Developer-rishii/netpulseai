@@ -40,8 +40,7 @@ export function Hero() {
           transition={{ duration: 0.7, delay: 0.1 }}
           className="mt-8 max-w-4xl text-5xl font-semibold leading-[1.05] tracking-tight md:text-7xl"
         >
-          Predict network{" "}
-          <span className="italic text-gradient-brand">congestion</span>{" "}
+          Predict network <span className="italic text-gradient-brand">congestion</span>{" "}
           <br className="hidden md:block" />
           before it happens.
         </motion.h1>
@@ -52,9 +51,9 @@ export function Hero() {
           transition={{ duration: 0.7, delay: 0.2 }}
           className="mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg"
         >
-          NetPulse AI is the predictive intelligence layer for modern telecom
-          operators — real-time monitoring, AI-forecasted congestion, and
-          SLA-grade alerting across your entire fiber, radio, and core network.
+          NetPulse AI is the predictive intelligence layer for modern telecom operators — real-time
+          monitoring, AI-forecasted congestion, and SLA-grade alerting across your entire fiber,
+          radio, and core network.
         </motion.p>
 
         <motion.div
@@ -91,12 +90,8 @@ export function Hero() {
               <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
                 {s.label}
               </div>
-              <div className="mt-2 text-2xl font-semibold text-foreground">
-                {s.value}
-              </div>
-              <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-                {s.sub}
-              </div>
+              <div className="mt-2 text-2xl font-semibold text-foreground">{s.value}</div>
+              <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">{s.sub}</div>
             </div>
           ))}
         </motion.div>

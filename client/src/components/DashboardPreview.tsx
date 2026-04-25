@@ -25,9 +25,7 @@ const latency = Array.from({ length: 20 }, (_, i) => ({
 }));
 
 // 8x14 heatmap
-const heat = Array.from({ length: 8 }, () =>
-  Array.from({ length: 14 }, () => Math.random()),
-);
+const heat = Array.from({ length: 8 }, () => Array.from({ length: 14 }, () => Math.random()));
 
 function heatColor(v: number) {
   // cyan → violet → red
@@ -52,8 +50,7 @@ export function DashboardPreview() {
           eyebrow="// Console"
           title={
             <>
-              Your network,{" "}
-              <span className="text-gradient-brand">one screen</span>.
+              Your network, <span className="text-gradient-brand">one screen</span>.
             </>
           }
           description="A NOC-grade dashboard your engineers will actually open. Live demo data shown below."
@@ -134,8 +131,20 @@ export function DashboardPreview() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid stroke="oklch(0.5 0.05 240 / 15%)" vertical={false} />
-                    <XAxis dataKey="h" stroke="oklch(0.7 0.02 250)" fontSize={10} tickLine={false} axisLine={false} interval={3} />
-                    <YAxis stroke="oklch(0.7 0.02 250)" fontSize={10} tickLine={false} axisLine={false} />
+                    <XAxis
+                      dataKey="h"
+                      stroke="oklch(0.7 0.02 250)"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                      interval={3}
+                    />
+                    <YAxis
+                      stroke="oklch(0.7 0.02 250)"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                    />
                     <Tooltip
                       contentStyle={{
                         background: "oklch(0.18 0.03 252)",
@@ -145,8 +154,21 @@ export function DashboardPreview() {
                       }}
                       labelStyle={{ color: "oklch(0.86 0.17 200)" }}
                     />
-                    <Area type="monotone" dataKey="predicted" stroke="oklch(0.65 0.24 295)" fill="url(#gViolet)" strokeWidth={1.5} strokeDasharray="4 3" />
-                    <Area type="monotone" dataKey="load" stroke="oklch(0.86 0.17 200)" fill="url(#gCyan)" strokeWidth={2} />
+                    <Area
+                      type="monotone"
+                      dataKey="predicted"
+                      stroke="oklch(0.65 0.24 295)"
+                      fill="url(#gViolet)"
+                      strokeWidth={1.5}
+                      strokeDasharray="4 3"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="load"
+                      stroke="oklch(0.86 0.17 200)"
+                      fill="url(#gCyan)"
+                      strokeWidth={2}
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -165,7 +187,12 @@ export function DashboardPreview() {
                   <LineChart data={latency}>
                     <CartesianGrid stroke="oklch(0.5 0.05 240 / 15%)" vertical={false} />
                     <XAxis dataKey="t" hide />
-                    <YAxis stroke="oklch(0.7 0.02 250)" fontSize={10} tickLine={false} axisLine={false} />
+                    <YAxis
+                      stroke="oklch(0.7 0.02 250)"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                    />
                     <Tooltip
                       contentStyle={{
                         background: "oklch(0.18 0.03 252)",
@@ -174,7 +201,13 @@ export function DashboardPreview() {
                         fontSize: 11,
                       }}
                     />
-                    <Line type="monotone" dataKey="ms" stroke="oklch(0.92 0.20 180)" strokeWidth={2} dot={false} />
+                    <Line
+                      type="monotone"
+                      dataKey="ms"
+                      stroke="oklch(0.92 0.20 180)"
+                      strokeWidth={2}
+                      dot={false}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -199,7 +232,10 @@ export function DashboardPreview() {
                   high
                 </div>
               </div>
-              <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(14, minmax(0,1fr))" }}>
+              <div
+                className="grid gap-1"
+                style={{ gridTemplateColumns: "repeat(14, minmax(0,1fr))" }}
+              >
                 {heat.flatMap((row, ri) =>
                   row.map((v, ci) => (
                     <div
