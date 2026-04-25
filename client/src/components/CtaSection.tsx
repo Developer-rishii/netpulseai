@@ -24,13 +24,12 @@ export function CtaSection() {
               Ready when you are
             </span>
             <h2 className="mx-auto mt-6 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">
-              Start monitoring{" "}
-              <span className="text-gradient-brand italic">smarter</span>{" "}
-              networks today.
+              Start monitoring <span className="text-gradient-brand italic">smarter</span> networks
+              today.
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground md:text-lg">
-              Onboard your first 1,000 nodes in under 24 hours. Predictive
-              alerts live by the end of the week.
+              Onboard your first 1,000 nodes in under 24 hours. Predictive alerts live by the end of
+              the week.
             </p>
             <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
               <a

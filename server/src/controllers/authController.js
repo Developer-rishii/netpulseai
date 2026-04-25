@@ -1,58 +1,167 @@
 const prisma = require("../lib/db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { sendOTPEmail } = require("../lib/mailer");
 
 const JWT_SECRET = process.env.JWT_SECRET || "netpulse_secret_key";
 
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
 
 exports.register = async (req, res) => {
   try {
     const { name, email, password, company } = req.body;
 
-    // Basic validation
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Please provide all required fields" });
     }
 
-    // Check if user exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
 
     if (existingUser) {
+      // If user exists but is not verified, we can resend OTP
+      if (!existingUser.isVerified) {
+        const otp = generateOTP();
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+        await prisma.user.update({
+          where: { email },
+          data: { otp, otpExpiry },
+        });
+
+        await sendOTPEmail(email, otp);
+        return res.status(200).json({ 
+          message: "User already exists but not verified. A new OTP has been sent.",
+          requiresVerification: true,
+          email 
+        });
+      }
       return res.status(400).json({ message: "User already exists with this email" });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
+    const otp = generateOTP();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Create user
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
         company,
+        otp,
+        otpExpiry,
+        isVerified: false,
       },
     });
 
-    // Generate JWT
-    const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    await sendOTPEmail(email, otp);
 
     res.status(201).json({
-      message: "User registered successfully",
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        company: user.company,
-      },
+      message: "Registration successful. Please verify your email with the OTP sent.",
+      requiresVerification: true,
+      email: user.email,
     });
   } catch (error) {
     console.error("Register error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+exports.verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Email and OTP are required" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ message: "Account already verified" });
+    }
+
+    if (user.otp !== otp) {
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    if (new Date() > user.otpExpiry) {
+      return res.status(400).json({ message: "OTP has expired" });
+    }
+
+    // Update user status
+    const updatedUser = await prisma.user.update({
+      where: { email },
+      data: {
+        isVerified: true,
+        otp: null,
+        otpExpiry: null,
+      },
+    });
+
+    const token = jwt.sign({ userId: updatedUser.id }, JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.status(200).json({
+      message: "Account verified successfully",
+      token,
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        company: updatedUser.company,
+      },
+    });
+  } catch (error) {
+    console.error("Verify OTP error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+exports.resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ message: "Account already verified" });
+    }
+
+    const otp = generateOTP();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+
+    await prisma.user.update({
+      where: { email },
+      data: { otp, otpExpiry },
+    });
+
+    await sendOTPEmail(email, otp);
+
+    res.status(200).json({ message: "OTP resent successfully" });
+  } catch (error) {
+    console.error("Resend OTP error:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -61,12 +170,10 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Basic validation
     if (!email || !password) {
       return res.status(400).json({ message: "Please provide email and password" });
     }
 
-    // Find user
     const user = await prisma.user.findUnique({
       where: { email },
     });
@@ -75,14 +182,20 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Check password
+    if (!user.isVerified) {
+      return res.status(403).json({ 
+        message: "Please verify your email before logging in",
+        requiresVerification: true,
+        email: user.email 
+      });
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Generate JWT
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
       expiresIn: "7d",
     });

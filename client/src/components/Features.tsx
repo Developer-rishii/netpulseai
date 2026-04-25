@@ -57,9 +57,8 @@ export function Features() {
           eyebrow="// Capabilities"
           title={
             <>
-              Built for the{" "}
-              <span className="text-gradient-brand">network operators</span> of
-              the next decade.
+              Built for the <span className="text-gradient-brand">network operators</span> of the
+              next decade.
             </>
           }
           description="Six pillars that turn raw telemetry into operational foresight — designed alongside Tier-1 carriers."
@@ -83,12 +82,8 @@ export function Features() {
                   {f.tag}
                 </span>
               </div>
-              <h3 className="mt-6 text-lg font-semibold tracking-tight">
-                {f.title}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {f.desc}
-              </p>
+              <h3 className="mt-6 text-lg font-semibold tracking-tight">{f.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
               <div className="absolute inset-x-0 bottom-0 h-px scale-x-0 bg-gradient-to-r from-transparent via-cyan to-transparent transition-transform duration-500 group-hover:scale-x-100" />
             </motion.div>
           ))}

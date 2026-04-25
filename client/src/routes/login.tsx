@@ -1,9 +1,21 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Mail, Lock, ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Mail, Lock, ArrowRight, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 import { AuthShell } from "@/components/AuthShell";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSeparator,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
+
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(1, "Password is required"),
+});
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -22,16 +34,23 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [requiresVerification, setRequiresVerification] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const [otp, setOtp] = useState("");
   const navigate = useNavigate();
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
     defaultValues: {
       email: "",
       password: "",
-    }
+    },
   });
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: z.infer<typeof loginSchema>) => {
     setIsLoading(true);
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
@@ -44,6 +63,13 @@ function LoginPage() {
 
       const result = await response.json();
 
+      if (response.status === 403 && result.requiresVerification) {
+        setRequiresVerification(true);
+        setUserEmail(result.email);
+        toast.info("Your account is not verified yet. Please enter the OTP sent to your email.");
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(result.message || "Login failed");
       }
@@ -51,15 +77,139 @@ function LoginPage() {
       toast.success("Welcome back!");
       localStorage.setItem("token", result.token);
       localStorage.setItem("user", JSON.stringify(result.user));
-      
-      // Navigate to dashboard or home
-      navigate({ to: "/" });
-    } catch (error: any) {
-      toast.error(error.message);
+
+      // Navigate to dashboard
+      navigate({ to: "/dashboard" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "An unexpected error occurred";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleVerifyOtp = async () => {
+    if (otp.length !== 6) {
+      toast.error("Please enter a 6-digit OTP");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/verify-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: userEmail, otp }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Verification failed");
+      }
+
+      toast.success("Account verified successfully!");
+      localStorage.setItem("token", result.token);
+      localStorage.setItem("user", JSON.stringify(result.user));
+      navigate({ to: "/dashboard" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Verification failed";
+      toast.error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/resend-otp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: userEmail }),
+      });
+
+      if (!response.ok) throw new Error("Failed to resend OTP");
+
+      toast.success("A new OTP has been sent to your email.");
+    } catch (error) {
+      toast.error("Could not resend OTP. Please try again.");
+    }
+  };
+
+  if (requiresVerification) {
+    return (
+      <AuthShell
+        eyebrow="// Security Verification"
+        title="Verify your email"
+        subtitle={`Please enter the 6-digit code sent to ${userEmail}.`}
+        footer={
+          <>
+            Entered wrong email?{" "}
+            <button onClick={() => setRequiresVerification(false)} className="font-medium text-cyan hover:underline">
+              Go back
+            </button>
+          </>
+        }
+      >
+        <div className="flex flex-col items-center space-y-6">
+          <div className="p-4 rounded-full bg-cyan/10 text-cyan mb-2">
+            <ShieldCheck className="w-10 h-10" />
+          </div>
+          
+          <div className="space-y-4 w-full flex flex-col items-center">
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              Enter verification code
+            </span>
+            <InputOTP
+              maxLength={6}
+              value={otp}
+              onChange={(val) => setOtp(val)}
+            >
+              <InputOTPGroup>
+                <InputOTPSlot index={0} />
+                <InputOTPSlot index={1} />
+                <InputOTPSlot index={2} />
+              </InputOTPGroup>
+              <InputOTPSeparator />
+              <InputOTPGroup>
+                <InputOTPSlot index={3} />
+                <InputOTPSlot index={4} />
+                <InputOTPSlot index={5} />
+              </InputOTPGroup>
+            </InputOTP>
+          </div>
+
+          <div className="w-full space-y-4">
+            <button
+              onClick={handleVerifyOtp}
+              disabled={isLoading || otp.length < 6}
+              className="group flex w-full items-center justify-center gap-2 rounded-md bg-gradient-to-r from-cyan to-violet px-4 py-3 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-primary-foreground transition-all hover:shadow-[0_0_32px_-4px_color-mix(in_oklab,var(--cyan)_60%,transparent)] disabled:opacity-50"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  Verify & Sign In
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={handleResendOtp}
+              className="w-full py-2 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-cyan transition-colors"
+            >
+              Resend Code
+            </button>
+          </div>
+        </div>
+      </AuthShell>
+    );
+  }
 
   return (
     <AuthShell
@@ -75,20 +225,17 @@ function LoginPage() {
         </>
       }
     >
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="space-y-5"
-      >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <Field
           icon={<Mail className="h-4 w-4" />}
           label="Work email"
           error={errors.email?.message as string}
-          {...register("email", { 
+          {...register("email", {
             required: "Email is required",
             pattern: {
               value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-              message: "Invalid email address"
-            }
+              message: "Invalid email address",
+            },
           })}
           type="email"
           placeholder="you@operator.com"
@@ -165,18 +312,21 @@ function LoginPage() {
   );
 }
 
-
 interface FieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
   icon: React.ReactNode;
   rightSlot?: React.ReactNode;
+  error?: string;
 }
 
-function Field({ label, icon, rightSlot, ...props }: FieldProps) {
+function Field({ label, icon, rightSlot, error, ...props }: FieldProps) {
   return (
-    <label className="block">
+    <div className="block">
       <span className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
         {label}
+        {error && (
+          <span className="text-destructive lowercase tracking-normal font-sans">{error}</span>
+        )}
       </span>
       <div className="group relative">
         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-cyan">
@@ -190,13 +340,22 @@ function Field({ label, icon, rightSlot, ...props }: FieldProps) {
           <span className="absolute right-3 top-1/2 -translate-y-1/2">{rightSlot}</span>
         )}
       </div>
-    </label>
+    </div>
   );
 }
 
 function SsoIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <rect x="3" y="11" width="18" height="11" rx="2" />
       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
     </svg>

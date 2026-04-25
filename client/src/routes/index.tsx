@@ -5,6 +5,7 @@ import { Features } from "@/components/Features";
 import { HowItWorks } from "@/components/HowItWorks";
 import { DashboardPreview } from "@/components/DashboardPreview";
 import { Benefits } from "@/components/Benefits";
+import { SpeedTestPromo } from "@/components/SpeedTestPromo";
 import { Trust } from "@/components/Trust";
 import { CtaSection } from "@/components/CtaSection";
 import { Footer } from "@/components/Footer";
@@ -40,6 +41,7 @@ function Index() {
       <HowItWorks />
       <DashboardPreview />
       <Benefits />
+      <SpeedTestPromo />
       <CtaSection />
       <Footer />
     </main>

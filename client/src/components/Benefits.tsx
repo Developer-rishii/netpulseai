@@ -31,8 +31,7 @@ export function Benefits() {
           eyebrow="// Outcomes"
           title={
             <>
-              Why operators{" "}
-              <span className="text-gradient-brand">choose NetPulse</span>.
+              Why operators <span className="text-gradient-brand">choose NetPulse</span>.
             </>
           }
         />
@@ -52,12 +51,8 @@ export function Benefits() {
               <div className="mt-6 text-5xl font-semibold tracking-tight text-gradient-brand">
                 {it.stat}
               </div>
-              <h3 className="mt-4 text-lg font-semibold tracking-tight">
-                {it.title}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {it.desc}
-              </p>
+              <h3 className="mt-4 text-lg font-semibold tracking-tight">{it.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{it.desc}</p>
             </motion.div>
           ))}
         </div>
