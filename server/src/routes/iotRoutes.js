@@ -57,7 +57,11 @@ router.post("/data", async (req, res) => {
     res.json({ status: "ok", data: payload });
   } catch (error) {
     console.error("Error saving IoT data:", error);
-    res.status(500).json({ status: "error", message: "Failed to save data" });
+    res.status(500).json({ 
+      status: "error", 
+      message: "Failed to save data",
+      details: error.message 
+    });
   }
 });
 
