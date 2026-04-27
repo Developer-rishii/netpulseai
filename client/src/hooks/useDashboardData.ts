@@ -1,12 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { io, Socket } from "socket.io-client";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export interface MetricData {
   time: string;
   latency: number;
-  packetLoss: number;
-  rssi: number;
   throughput: number;
+  active_users: number;
+  congestion_level: number;
   congestionStatus: "Low" | "Medium" | "High";
 }
 
@@ -28,113 +31,127 @@ export function useDashboardData() {
   const [latestMetric, setLatestMetric] = useState<MetricData | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
-  const [modelStatus, setModelStatus] = useState<"Active" | "Idle">("Active");
-  const [apiStatus, setApiStatus] = useState<"Online" | "Offline">("Online");
+  const [modelStatus, setModelStatus] = useState<"Active" | "Idle">("Idle");
+  const [apiStatus, setApiStatus] = useState<"Online" | "Offline">("Offline");
   const [lastPredictionTime, setLastPredictionTime] = useState<string>("");
+  const socketRef = useRef<Socket | null>(null);
 
-  // Helper to get random value within a range
-  const randomValue = (min: number, max: number) => Math.random() * (max - min) + min;
-
-  useEffect(() => {
-    // Initial mock data
-    const initialData: MetricData[] = Array.from({ length: 20 }).map((_, i) => {
-      const now = new Date();
-      now.setSeconds(now.getSeconds() - (20 - i) * 2);
-      return {
-        time: now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        latency: randomValue(10, 50),
-        packetLoss: randomValue(0, 0.5),
-        rssi: randomValue(-70, -40),
-        throughput: randomValue(800, 1200),
-        congestionStatus: "Low",
-      };
+  // Process an incoming metric (from both initial fetch and WebSocket)
+  const processMetric = (metric: MetricData) => {
+    setMetrics((prev) => {
+      const updated = [...prev, metric];
+      if (updated.length > 30) updated.shift(); // Keep last 30 data points
+      return updated;
     });
-    setMetrics(initialData);
-    setLatestMetric(initialData[initialData.length - 1]);
-    
-    setAlerts([
-      { id: "1", message: "System initialized. Monitoring active.", type: "info", timestamp: new Date().toLocaleTimeString() }
-    ]);
-  }, []);
 
+    setLatestMetric(metric);
+    setLastPredictionTime(metric.time);
+    setApiStatus("Online");
+    setModelStatus("Active");
+
+    // Generate activity log
+    const newLog: ActivityLog = {
+      id: Date.now().toString(),
+      log: `users=${metric.active_users}, latency=${metric.latency.toFixed(0)}ms, throughput=${metric.throughput.toFixed(1)}Mbps, congestion=${metric.congestionStatus.toUpperCase()}`,
+      timestamp: metric.time,
+    };
+    setLogs((prev) => [...prev.slice(-49), newLog]);
+
+    // Generate alerts based on thresholds
+    if (metric.congestionStatus === "High") {
+      const newAlert: Alert = {
+        id: Date.now().toString(),
+        message: `⚠ High congestion detected (latency: ${metric.latency.toFixed(0)}ms)`,
+        type: "critical",
+        timestamp: metric.time,
+      };
+      setAlerts((prev) => [newAlert, ...prev].slice(0, 5));
+    } else if (metric.congestionStatus === "Medium" && metric.latency > 60) {
+      const newAlert: Alert = {
+        id: Date.now().toString(),
+        message: `📉 Network congestion rising (latency: ${metric.latency.toFixed(0)}ms)`,
+        type: "warning",
+        timestamp: metric.time,
+      };
+      setAlerts((prev) => [newAlert, ...prev].slice(0, 5));
+    }
+  };
+
+  // 1) Fetch historical data on mount
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const fetchHistory = async () => {
       try {
-        // Here we would ideally fetch from the real endpoints:
-        // const response = await axios.get(`${import.meta.env.VITE_API_URL}/metrics`);
-        // const prediction = await axios.post(`${import.meta.env.VITE_API_URL}/predict`, data);
-        
-        // Simulating the API response for real-time behavior
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        
-        // Add some jitter to make it look real
-        const baseLatency = 40 + Math.sin(now.getTime() / 10000) * 80; // simulates wave of latency
-        const currentLatency = Math.max(5, baseLatency + randomValue(-10, 10));
-        
-        const currentPacketLoss = currentLatency > 100 ? randomValue(1, 5) : randomValue(0, 0.2);
-        const currentRssi = randomValue(-85, -45);
-        const currentThroughput = currentLatency > 100 ? randomValue(200, 600) : randomValue(900, 1500);
-        
-        let status: "Low" | "Medium" | "High" = "Low";
-        if (currentLatency > 100 || currentPacketLoss > 2) status = "High";
-        else if (currentLatency > 60 || currentPacketLoss > 0.5) status = "Medium";
+        const response = await axios.get(`${API_URL}/api/iot/metrics?limit=30`);
+        if (response.data?.data) {
+          const history: MetricData[] = response.data.data;
+          setMetrics(history);
+          if (history.length > 0) {
+            const latest = history[history.length - 1];
+            setLatestMetric(latest);
+            setLastPredictionTime(latest.time);
+            setApiStatus("Online");
+            setModelStatus("Active");
 
-        const newDataPoint: MetricData = {
-          time: timeStr,
-          latency: Number(currentLatency.toFixed(2)),
-          packetLoss: Number(currentPacketLoss.toFixed(2)),
-          rssi: Number(currentRssi.toFixed(2)),
-          throughput: Number(currentThroughput.toFixed(2)),
-          congestionStatus: status,
-        };
-
-        setMetrics(prev => {
-          const updated = [...prev, newDataPoint];
-          if (updated.length > 30) updated.shift(); // Keep last 30 data points
-          return updated;
-        });
-        
-        setLatestMetric(newDataPoint);
-        setLastPredictionTime(timeStr);
-        setApiStatus("Online");
-        setModelStatus("Active");
-
-        // Generate logs
-        const newLog: ActivityLog = {
-          id: Date.now().toString(),
-          log: `latency=${newDataPoint.latency.toFixed(0)}ms, pkt_loss=${newDataPoint.packetLoss.toFixed(2)}%, congestion=${status.toUpperCase()}`,
-          timestamp: timeStr,
-        };
-        setLogs(prev => [...prev.slice(-49), newLog]); // Keep last 50 logs
-
-        // Generate alerts if needed
-        if (status === "High" && Math.random() > 0.7) {
-          const newAlert: Alert = {
-            id: Date.now().toString(),
-            message: `⚠ High latency spike detected (${newDataPoint.latency.toFixed(0)}ms)`,
-            type: "critical",
-            timestamp: timeStr,
-          };
-          setAlerts(prev => [newAlert, ...prev].slice(0, 5));
-        } else if (status === "Medium" && Math.random() > 0.8) {
-          const newAlert: Alert = {
-            id: Date.now().toString(),
-            message: `📉 Network congestion rising`,
-            type: "warning",
-            timestamp: timeStr,
-          };
-          setAlerts(prev => [newAlert, ...prev].slice(0, 5));
+            // Create an initial log entry
+            setAlerts([
+              {
+                id: "init",
+                message: "System initialized. Monitoring active.",
+                type: "info",
+                timestamp: new Date().toLocaleTimeString([], {
+                  hour12: false,
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                }),
+              },
+            ]);
+          }
         }
-
       } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
+        console.error("Failed to fetch historical metrics:", error);
         setApiStatus("Offline");
       }
-    }, 2000); // Update every 2 seconds
+    };
 
-    return () => clearInterval(interval);
+    fetchHistory();
   }, []);
 
-  return { metrics, latestMetric, alerts, logs, modelStatus, apiStatus, lastPredictionTime };
+  // 2) Connect to WebSocket for real-time updates
+  useEffect(() => {
+    const socket = io(API_URL, {
+      transports: ["websocket", "polling"],
+    });
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      console.log("WebSocket connected:", socket.id);
+      setApiStatus("Online");
+    });
+
+    socket.on("new_metric", (data: MetricData) => {
+      console.log("Received new metric via WebSocket:", data);
+      processMetric(data);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("WebSocket disconnected");
+      setApiStatus("Offline");
+      setModelStatus("Idle");
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  return {
+    metrics,
+    latestMetric,
+    alerts,
+    logs,
+    modelStatus,
+    apiStatus,
+    lastPredictionTime,
+  };
 }

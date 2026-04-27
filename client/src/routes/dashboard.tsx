@@ -6,7 +6,7 @@ import { AIInsights } from "@/components/dashboard/AIInsights";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { LiveFeed } from "@/components/dashboard/LiveFeed";
 import { SystemStatus } from "@/components/dashboard/SystemStatus";
-import { Activity, ArrowDownUp, Network, Wifi, AlertTriangle } from "lucide-react";
+import { Activity, Network, Users, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 
 export const Route = createFileRoute("/dashboard")({
@@ -28,7 +28,10 @@ function DashboardPage() {
   if (!latestMetric) {
     return (
       <div className="min-h-screen bg-background grid-bg flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full bg-cyan animate-pulse-dot" />
+        <div className="text-center space-y-4">
+          <div className="w-8 h-8 rounded-full bg-cyan animate-pulse-dot mx-auto" />
+          <p className="text-muted-foreground text-sm font-mono">Waiting for IoT data...</p>
+        </div>
       </div>
     );
   }
@@ -57,37 +60,27 @@ function DashboardPage() {
         </header>
 
         {/* 1. Top Summary Cards (KPI Section) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard
             title="Latency"
             value={latestMetric.latency.toFixed(0)}
             unit="ms"
             icon={Activity}
-            trend={{ value: 18, isPositive: true }} // Mock trend
             status={latestMetric.latency > 100 ? "critical" : latestMetric.latency > 60 ? "warning" : "good"}
             glow={latestMetric.latency > 60}
           />
           <MetricCard
-            title="Packet Loss"
-            value={latestMetric.packetLoss.toFixed(2)}
-            unit="%"
-            icon={ArrowDownUp}
-            status={latestMetric.packetLoss > 2 ? "critical" : latestMetric.packetLoss > 0.5 ? "warning" : "good"}
-            glow={latestMetric.packetLoss > 0.5}
-          />
-          <MetricCard
-            title="Signal (RSSI)"
-            value={latestMetric.rssi.toFixed(0)}
-            unit="dBm"
-            icon={Wifi}
-            status={latestMetric.rssi < -75 ? "critical" : latestMetric.rssi < -65 ? "warning" : "good"}
+            title="Active Users"
+            value={latestMetric.active_users}
+            icon={Users}
+            status={latestMetric.active_users > 80 ? "critical" : latestMetric.active_users > 50 ? "warning" : "good"}
+            glow={latestMetric.active_users > 50}
           />
           <MetricCard
             title="Throughput"
-            value={latestMetric.throughput.toFixed(0)}
+            value={latestMetric.throughput.toFixed(1)}
             unit="Mbps"
             icon={Network}
-            trend={{ value: 4.2, isPositive: true }}
           />
           <MetricCard
             title="Congestion Prediction"
