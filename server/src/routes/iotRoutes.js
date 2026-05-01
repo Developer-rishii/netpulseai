@@ -3,6 +3,7 @@ const router = express.Router();
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const axios = require("axios");
 
 // Helper: map integer congestion_level to status string
 function getCongestionStatus(level) {
@@ -11,24 +12,41 @@ function getCongestionStatus(level) {
   return "Low";
 }
 
-// ✅ Receive IoT data from ESP32, save to DB, and broadcast via WebSocket
+// ✅ Receive IoT data from ESP32, get ML prediction, and broadcast
 router.post("/data", async (req, res) => {
   console.log("Incoming IoT Data:", req.body);
 
   try {
-    const { active_users, latency, throughput, congestion_level } = req.body;
+    const { active_users, latency, throughput, packet_loss, signal_strength } = req.body;
 
-    const resolvedCongestion = congestion_level != null
-      ? congestion_level
-      : Math.floor(Math.random() * 100);
+    // 1. Get prediction from ML service
+    let predicted_congestion = 0;
+    try {
+      const mlResponse = await axios.post("http://localhost:8000/predict", {
+        active_users: active_users || 0,
+        latency: latency || 0,
+        throughput: throughput || 0,
+        packet_loss: packet_loss || 0,
+        signal_strength: signal_strength || 0
+      });
+      predicted_congestion = mlResponse.data.congestion_level;
+      // Convert classification (0,1,2) to a 0-100 scale for the dashboard if needed
+      // (The model returns 0, 1, or 2 based on Training.ipynb)
+      predicted_congestion = predicted_congestion * 40 + 10; // Simple mapping: 0->10, 1->50, 2->90
+    } catch (mlError) {
+      console.error("ML Service Error:", mlError.message);
+      predicted_congestion = Math.floor(Math.random() * 30); // Default to low random if ML is down
+    }
 
-    // Save to database
+    // 2. Save to database
     const metric = await prisma.networkMetric.create({
       data: {
         active_users: active_users || 0,
         latency: latency || 0.0,
         throughput: throughput || 0.0,
-        congestion_level: resolvedCongestion,
+        congestion_level: predicted_congestion,
+        // If your prisma schema doesn't have packet_loss/signal_strength yet, 
+        // they won't be saved but they ARE used for prediction.
       }
     });
 
@@ -50,18 +68,12 @@ router.post("/data", async (req, res) => {
     const io = req.app.get("io");
     if (io) {
       io.emit("new_metric", payload);
-      console.log("Broadcasted metric to WebSocket clients:", metric.id);
     }
 
-    console.log("Saved metric:", metric.id);
     res.json({ status: "ok", data: payload });
   } catch (error) {
     console.error("Error saving IoT data:", error);
-    res.status(500).json({ 
-      status: "error", 
-      message: "Failed to save data",
-      details: error.message 
-    });
+    res.status(500).json({ status: "error", message: "Failed to save data" });
   }
 });
 

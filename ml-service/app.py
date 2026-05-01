@@ -25,28 +25,37 @@ class NetworkData(BaseModel):
     active_users: int
     latency: float
     throughput: float
+    packet_loss: float
+    signal_strength: float
 
 @app.post("/predict")
 async def predict(data: NetworkData):
     if model is None:
         raise HTTPException(status_code=500, detail="Model not loaded")
 
-    # Update history
+    # Get current hour (matching training feature 'hour')
+    from datetime import datetime
+    current_hour = datetime.now().hour
+
+    # Update history for rolling features
     history["active_users"].append(data.active_users)
     history["latency"].append(data.latency)
     history["throughput"].append(data.throughput)
 
-    # Calculate rolling means
-    users_roll = np.mean(history["active_users"])
-    latency_roll = np.mean(history["latency"])
-    throughput_roll = np.mean(history["throughput"])
+    # Calculate rolling means (default to current value if not enough history)
+    users_roll = np.mean(history["active_users"]) if history["active_users"] else data.active_users
+    latency_roll = np.mean(history["latency"]) if history["latency"] else data.latency
+    throughput_roll = np.mean(history["throughput"]) if history["throughput"] else data.throughput
 
-    # Prepare input for model
-    # Note: Ensure the order of columns matches the training data
+    # Prepare input for model in the EXACT order of training columns:
+    # ['hour', 'active_users', 'latency', 'packet_loss', 'throughput', 'signal_strength', 'users_roll', 'latency_roll', 'throughput_roll']
     input_data = pd.DataFrame([{
+        "hour": current_hour,
         "active_users": data.active_users,
         "latency": data.latency,
+        "packet_loss": data.packet_loss,
         "throughput": data.throughput,
+        "signal_strength": data.signal_strength,
         "users_roll": users_roll,
         "latency_roll": latency_roll,
         "throughput_roll": throughput_roll
