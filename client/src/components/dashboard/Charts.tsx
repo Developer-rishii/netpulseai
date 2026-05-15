@@ -9,6 +9,9 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  BarChart,
+  Bar,
+  Cell
 } from "recharts";
 import { MetricData } from "../../hooks/useDashboardData";
 
@@ -101,6 +104,87 @@ export function ThroughputLatencyChart({ data }: ChartsProps) {
               isAnimationActive={false}
             />
           </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+export function ActiveUsersChart({ data }: ChartsProps) {
+  return (
+    <div className="glass-panel p-5 rounded-2xl h-[300px] flex flex-col">
+      <h3 className="font-mono text-xs uppercase tracking-[0.1em] text-muted-foreground mb-4">
+        Active Users Trend
+      </h3>
+      <div className="flex-1 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+            <XAxis dataKey="time" stroke="var(--color-muted-foreground)" fontSize={10} tickMargin={10} />
+            <YAxis stroke="var(--color-muted-foreground)" fontSize={10} tickMargin={10} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "var(--color-card)",
+                borderColor: "var(--color-border)",
+                borderRadius: "8px",
+                fontFamily: "var(--font-mono)",
+                fontSize: "12px",
+              }}
+              itemStyle={{ color: "#3b82f6" }}
+            />
+            <Area
+              type="monotone"
+              dataKey="active_users"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              fillOpacity={1}
+              fill="url(#colorUsers)"
+              isAnimationActive={false}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+export function CongestionHistoryChart({ data }: ChartsProps) {
+  return (
+    <div className="glass-panel p-5 rounded-2xl h-[300px] flex flex-col">
+      <h3 className="font-mono text-xs uppercase tracking-[0.1em] text-muted-foreground mb-4">
+        Congestion History
+      </h3>
+      <div className="flex-1 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 5, right: 0, left: -20, bottom: 0 }} barSize={10}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+            <XAxis dataKey="time" stroke="var(--color-muted-foreground)" fontSize={10} tickMargin={10} />
+            <YAxis stroke="var(--color-muted-foreground)" fontSize={10} tickMargin={10} />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "var(--color-card)",
+                borderColor: "var(--color-border)",
+                borderRadius: "8px",
+                fontFamily: "var(--font-mono)",
+                fontSize: "12px",
+              }}
+              cursor={{ fill: 'var(--color-white)', opacity: 0.05 }}
+            />
+            <Bar dataKey="congestion_level" isAnimationActive={false} radius={[4, 4, 0, 0]}>
+              {data.map((entry, index) => {
+                let color = "var(--color-cyan)"; // Low
+                if (entry.congestionStatus === "Medium") color = "var(--color-warning)"; // Medium
+                if (entry.congestionStatus === "High") color = "var(--color-destructive)"; // High
+                return <Cell key={`cell-${index}`} fill={color} />;
+              })}
+            </Bar>
+          </BarChart>
         </ResponsiveContainer>
       </div>
     </div>

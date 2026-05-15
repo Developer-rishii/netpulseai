@@ -26,5 +26,6 @@ model NetworkMetric {
   latency          Float
   throughput       Float
   congestion_level Int
+  future_congestion Int?
   timestamp        DateTime @default(now())
 }
