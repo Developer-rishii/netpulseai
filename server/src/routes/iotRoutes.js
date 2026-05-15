@@ -21,6 +21,8 @@ router.post("/data", async (req, res) => {
 
     // 1. Get prediction from ML service
     let predicted_congestion = 0;
+    let predicted_future_congestion = null;
+    
     try {
       const mlResponse = await axios.post("http://localhost:8000/predict", {
         active_users: active_users || 0,
@@ -30,9 +32,21 @@ router.post("/data", async (req, res) => {
         signal_strength: signal_strength || 0
       });
       predicted_congestion = mlResponse.data.congestion_level;
-      // Convert classification (0,1,2) to a 0-100 scale for the dashboard if needed
-      // (The model returns 0, 1, or 2 based on Training.ipynb)
       predicted_congestion = predicted_congestion * 40 + 10; // Simple mapping: 0->10, 1->50, 2->90
+      
+      try {
+        const forecastResponse = await axios.post("http://localhost:8000/predict/forecast", {
+          active_users: active_users || 0,
+          latency: latency || 0,
+          throughput: throughput || 0,
+          packet_loss: packet_loss || 0,
+          signal_strength: signal_strength || 0
+        });
+        predicted_future_congestion = forecastResponse.data.future_congestion_level;
+        predicted_future_congestion = predicted_future_congestion * 40 + 10;
+      } catch (forecastError) {
+        console.error("Forecast ML Service Error:", forecastError.message);
+      }
     } catch (mlError) {
       console.error("ML Service Error:", mlError.message);
       predicted_congestion = Math.floor(Math.random() * 30); // Default to low random if ML is down
@@ -45,6 +59,7 @@ router.post("/data", async (req, res) => {
         latency: latency || 0.0,
         throughput: throughput || 0.0,
         congestion_level: predicted_congestion,
+        future_congestion: predicted_future_congestion,
         // If your prisma schema doesn't have packet_loss/signal_strength yet, 
         // they won't be saved but they ARE used for prediction.
       }
@@ -57,7 +72,9 @@ router.post("/data", async (req, res) => {
       latency: metric.latency,
       throughput: metric.throughput,
       congestion_level: metric.congestion_level,
+      future_congestion: metric.future_congestion,
       congestionStatus: getCongestionStatus(metric.congestion_level),
+      futureCongestionStatus: metric.future_congestion !== null ? getCongestionStatus(metric.future_congestion) : null,
       timestamp: metric.timestamp,
       time: new Date(metric.timestamp).toLocaleTimeString([], {
         hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
@@ -94,7 +111,9 @@ router.get("/metrics", async (req, res) => {
       latency: m.latency,
       throughput: m.throughput,
       congestion_level: m.congestion_level,
+      future_congestion: m.future_congestion,
       congestionStatus: getCongestionStatus(m.congestion_level),
+      futureCongestionStatus: m.future_congestion !== null ? getCongestionStatus(m.future_congestion) : null,
       timestamp: m.timestamp,
       time: new Date(m.timestamp).toLocaleTimeString([], {
         hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'

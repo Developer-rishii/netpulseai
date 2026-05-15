@@ -1,11 +1,12 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { MetricCard } from "@/components/dashboard/MetricCard";
-import { LatencyChart, ThroughputLatencyChart } from "@/components/dashboard/Charts";
+import { LatencyChart, ThroughputLatencyChart, ActiveUsersChart, CongestionHistoryChart } from "@/components/dashboard/Charts";
 import { AIInsights } from "@/components/dashboard/AIInsights";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { LiveFeed } from "@/components/dashboard/LiveFeed";
 import { SystemStatus } from "@/components/dashboard/SystemStatus";
+import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Activity, Network, Users, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -37,11 +38,14 @@ function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background grid-bg text-foreground p-6 font-sans relative overflow-x-hidden">
-      {/* Background ambient glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-64 bg-cyan/5 blur-[120px] pointer-events-none rounded-full" />
+    <div className="flex h-screen overflow-hidden bg-background font-sans relative">
+      <Sidebar />
       
-      <div className="max-w-[1600px] mx-auto space-y-6 relative z-10">
+      <main className="flex-1 overflow-y-auto p-6 grid-bg relative">
+        {/* Background ambient glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-64 bg-cyan/5 blur-[120px] pointer-events-none rounded-full" />
+        
+        <div className="max-w-[1600px] mx-auto space-y-6 relative z-10">
         {/* Header */}
         <header className="flex items-center justify-between">
           <div>
@@ -60,7 +64,7 @@ function DashboardPage() {
         </header>
 
         {/* 1. Top Summary Cards (KPI Section) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <MetricCard
             title="Latency"
             value={latestMetric.latency.toFixed(0)}
@@ -83,11 +87,18 @@ function DashboardPage() {
             icon={Network}
           />
           <MetricCard
-            title="Congestion Prediction"
+            title="Current Congestion"
             value={latestMetric.congestionStatus}
             icon={AlertTriangle}
             status={latestMetric.congestionStatus === "High" ? "critical" : latestMetric.congestionStatus === "Medium" ? "warning" : "good"}
             glow={latestMetric.congestionStatus !== "Low"}
+          />
+          <MetricCard
+            title="Future Forecast"
+            value={latestMetric.futureCongestionStatus || "Pending"}
+            icon={AlertTriangle}
+            status={latestMetric.futureCongestionStatus === "High" ? "critical" : latestMetric.futureCongestionStatus === "Medium" ? "warning" : "good"}
+            glow={latestMetric.futureCongestionStatus === "High" || latestMetric.futureCongestionStatus === "Medium"}
           />
         </div>
 
@@ -98,6 +109,10 @@ function DashboardPage() {
           <div className="lg:col-span-8 space-y-6">
             <LatencyChart data={metrics} />
             <ThroughputLatencyChart data={metrics} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <ActiveUsersChart data={metrics} />
+              <CongestionHistoryChart data={metrics} />
+            </div>
           </div>
 
           {/* Right Column (Insights, Alerts, Feed - takes up 4 columns) */}
@@ -116,7 +131,8 @@ function DashboardPage() {
           </div>
           
         </div>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

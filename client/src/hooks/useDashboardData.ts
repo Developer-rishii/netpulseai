@@ -10,7 +10,9 @@ export interface MetricData {
   throughput: number;
   active_users: number;
   congestion_level: number;
+  future_congestion?: number | null;
   congestionStatus: "Low" | "Medium" | "High";
+  futureCongestionStatus?: "Low" | "Medium" | "High" | null;
 }
 
 export interface Alert {
@@ -50,9 +52,10 @@ export function useDashboardData() {
     setModelStatus("Active");
 
     // Generate activity log
+    const futureLog = metric.futureCongestionStatus ? ` | Forecast=${metric.futureCongestionStatus.toUpperCase()}` : '';
     const newLog: ActivityLog = {
       id: Date.now().toString(),
-      log: `users=${metric.active_users}, latency=${metric.latency.toFixed(0)}ms, throughput=${metric.throughput.toFixed(1)}Mbps, congestion=${metric.congestionStatus.toUpperCase()}`,
+      log: `users=${metric.active_users}, latency=${metric.latency.toFixed(0)}ms, throughput=${metric.throughput.toFixed(1)}Mbps, congestion=${metric.congestionStatus.toUpperCase()}${futureLog}`,
       timestamp: metric.time,
     };
     setLogs((prev) => [...prev.slice(-49), newLog]);
